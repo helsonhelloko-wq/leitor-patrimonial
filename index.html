@@ -2,148 +2,417 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Leitor Patrimonial</title>
-  <script src="https://unpkg.com/@zxing/browser@0.2.1"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b57d0">
+  <title>Leitor Patrimonial HGV</title>
   <style>
-    *{box-sizing:border-box}
-    body{margin:0;background:#f1f3f4;font-family:Arial,Helvetica,sans-serif;color:#202124}
-    .container{width:100%;max-width:620px;margin:auto;padding:18px}
-    .card{background:#fff;border-radius:14px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
-    h1{font-size:23px;margin:0 0 6px;text-align:center}
-    p{text-align:center;color:#666}
-    .camera{position:relative;background:#000;border-radius:12px;overflow:hidden;margin:18px 0}
-    video{display:block;width:100%;height:auto;min-height:260px;object-fit:cover}
-    .mira{position:absolute;left:8%;right:8%;top:50%;height:3px;background:#ff0000;box-shadow:0 0 8px rgba(255,0,0,.8)}
-    .status{text-align:center;font-weight:bold;margin:14px 0}
-    button{width:100%;border:0;border-radius:9px;padding:15px;margin-top:10px;font-size:16px;font-weight:bold;cursor:pointer}
-    .fechar{background:#d93025;color:#fff}
-    .manual{background:#1a73e8;color:#fff}
-    .codigo{font-size:22px;text-align:center;font-weight:bold;letter-spacing:2px;word-break:break-all}
-    .erro{color:#b3261e;text-align:center}
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f1f3f4;
+      color: #202124;
+    }
+    .container {
+      width: 100%;
+      max-width: 680px;
+      margin: auto;
+      padding: 16px;
+    }
+    h1 { font-size: 24px; margin: 4px 0 6px; text-align: center; }
+    .sub { text-align: center; color: #666; margin: 0 0 18px; }
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
+    #videoWrap {
+      position: relative;
+      overflow: hidden;
+      border-radius: 12px;
+      background: #111;
+      aspect-ratio: 16 / 10;
+    }
+    #video {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .mira {
+      position: absolute;
+      left: 8%; right: 8%;
+      top: 35%; bottom: 35%;
+      border: 3px solid rgba(255,255,255,.9);
+      border-radius: 8px;
+      pointer-events: none;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,.20);
+    }
+    .hint {
+      text-align: center;
+      color: #666;
+      font-size: 14px;
+      margin: 10px 0 0;
+    }
+    button, .fileLabel {
+      width: 100%;
+      border: 0;
+      border-radius: 10px;
+      padding: 14px;
+      margin-top: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      text-align: center;
+      display: block;
+    }
+    .primary { background: #0b57d0; color: white; }
+    .secondary { background: #e8f0fe; color: #174ea6; }
+    .danger { background: #d93025; color: white; }
+    .fileLabel { background: #f1f3f4; color: #202124; }
+    input[type=file] { display: none; }
+    #status {
+      padding: 12px;
+      border-radius: 10px;
+      background: #f8f9fa;
+      margin-top: 12px;
+      line-height: 1.4;
+    }
+    #result { display: none; }
+    .code {
+      font-size: 26px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-align: center;
+      word-break: break-all;
+      margin: 12px 0;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .field {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+    .field strong { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
+    .field span { font-weight: bold; font-size: 18px; }
+    .ok { color: #137333; font-weight: bold; }
+    .warn { color: #b06000; font-weight: bold; }
+    @media (max-width: 500px) {
+      .container { padding: 10px; }
+      h1 { font-size: 22px; }
+      .code { font-size: 23px; }
+    }
   </style>
 </head>
 <body>
 <div class="container">
-  <div class="card">
-    <h1>📷 Leitor Patrimonial</h1>
-    <p>Aponte a câmera para o código de barras <strong>Code 128</strong>.</p>
+  <h1>📷 Leitor Patrimonial HGV</h1>
+  <p class="sub">Leitura exclusiva de código de barras Code 128</p>
 
-    <div class="camera">
-      <video id="video" autoplay muted playsinline></video>
+  <div class="card">
+    <div id="videoWrap">
+      <video id="video" playsinline muted></video>
       <div class="mira"></div>
     </div>
+    <p class="hint">Aponte a câmera para as barras. Mantenha o código inteiro dentro da área.</p>
 
-    <div id="status" class="status">Iniciando câmera...</div>
+    <button id="btnIniciar" class="primary" type="button">📷 INICIAR CÂMERA</button>
+    <button id="btnParar" class="danger" type="button" style="display:none">⏹ PARAR CÂMERA</button>
 
-    <div id="codigoBox" style="display:none">
-      <div id="codigo" class="codigo"></div>
-    </div>
+    <label class="fileLabel" for="arquivo">🖼️ TESTAR COM UMA FOTO</label>
+    <input id="arquivo" type="file" accept="image/*" capture="environment">
 
-    <button class="fechar" onclick="fechar()">✖ FECHAR</button>
-    <button class="manual" onclick="voltarComCodigo()">↩ VOLTAR SEM NOVA LEITURA</button>
+    <div id="status">Aguardando câmera...</div>
+  </div>
+
+  <div id="result" class="card">
+    <div class="ok">✓ Código reconhecido</div>
+    <div id="codigo" class="code"></div>
+    <div id="formato"></div>
+    <div id="estrutura" class="grid"></div>
+    <button id="btnUsar" class="primary" type="button">✓ USAR ESTE CÓDIGO</button>
+    <button id="btnNovo" class="secondary" type="button">📷 LER OUTRO</button>
   </div>
 </div>
 
-<script>
-let reader = null;
-let controls = null;
-let lendo = false;
+<script type="module">
+  import { BrowserMultiFormatReader } from 'https://cdn.jsdelivr.net/npm/@zxing/browser@0.2.1/+esm';
+  import { BarcodeFormat, DecodeHintType } from 'https://cdn.jsdelivr.net/npm/@zxing/library@0.23.0/+esm';
 
-const retorno = new URLSearchParams(location.search).get('retorno');
-
-async function iniciar() {
-  const status = document.getElementById('status');
-
-  try {
-    reader = new ZXingBrowser.BrowserMultiFormatReader();
-
-    const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
-
-    if (!devices.length) throw new Error('Nenhuma câmera foi encontrada.');
-
-    let camera = devices.find(d =>
-      /back|rear|environment|traseira/i.test(d.label)
-    ) || devices[0];
-
-    lendo = true;
-    status.textContent = 'Aponte a câmera para o código...';
-
-    controls = await reader.decodeFromVideoDevice(
-      camera.deviceId,
-      document.getElementById('video'),
-      (result) => {
-        if (!result || !lendo) return;
-
-        const codigo = String(result.getText() || '').replace(/\D/g, '');
-
-        if (codigo.length !== 16) {
-          status.textContent = 'Código lido, mas não possui 16 dígitos.';
-          return;
-        }
-
-        lendo = false;
-        status.textContent = 'Código identificado!';
-        document.getElementById('codigo').textContent = codigo;
-        document.getElementById('codigoBox').style.display = 'block';
-
-        pararCamera();
-
-        setTimeout(() => {
-          retornar(codigo);
-        }, 400);
-      }
-    );
-  } catch (e) {
-    console.error(e);
-    status.innerHTML = '<span class="erro">' +
-      (e && e.message ? e.message : 'Não foi possível acessar a câmera.') +
-      '</span>';
-  }
-}
-
-function pararCamera() {
-  lendo = false;
-  if (controls) {
-    try { controls.stop(); } catch(e) {}
-    controls = null;
-  }
-  if (reader) {
-    try { reader.reset(); } catch(e) {}
-  }
   const video = document.getElementById('video');
-  if (video && video.srcObject) {
-    video.srcObject.getTracks().forEach(t => t.stop());
+  const status = document.getElementById('status');
+  const resultBox = document.getElementById('result');
+  const codigoEl = document.getElementById('codigo');
+  const formatoEl = document.getElementById('formato');
+  const estruturaEl = document.getElementById('estrutura');
+  const btnIniciar = document.getElementById('btnIniciar');
+  const btnParar = document.getElementById('btnParar');
+  const btnUsar = document.getElementById('btnUsar');
+  const btnNovo = document.getElementById('btnNovo');
+  const arquivo = document.getElementById('arquivo');
+
+  let stream = null;
+  let reader = null;
+  let controls = null;
+  let lendo = false;
+  let ultimoCodigo = '';
+
+  function setStatus(texto, classe='') {
+    status.className = classe;
+    status.textContent = texto;
+  }
+
+  function normalizarCodigo(valor) {
+    return String(valor || '').replace(/\D/g, '');
+  }
+
+  function mostrarResultado(texto, formato='CODE_128') {
+    const codigo = normalizarCodigo(texto);
+
+    if (!codigo) {
+      setStatus('Código detectado, mas sem conteúdo numérico.', 'warn');
+      return;
+    }
+
+    ultimoCodigo = codigo;
+    codigoEl.textContent = codigo;
+    formatoEl.innerHTML = '<strong>Formato:</strong> ' + formato;
+
+    if (codigo.length === 16) {
+      const ug = codigo.substring(0, 6);
+      const tombo = codigo.substring(6, 12);
+      const ano = codigo.substring(12, 16);
+
+      estruturaEl.innerHTML = `
+        <div class="field"><strong>UG</strong><span>${ug}</span></div>
+        <div class="field"><strong>Tombo</strong><span>${tombo}</span></div>
+        <div class="field"><strong>Ano</strong><span>${ano}</span></div>
+      `;
+    } else {
+      estruturaEl.innerHTML = '<div class="field" style="grid-column:1/-1"><strong>Tamanho</strong><span>' + codigo.length + ' dígitos</span></div>';
+    }
+
+    resultBox.style.display = 'block';
+    setStatus('Código reconhecido: ' + codigo, 'ok');
+    pararCamera();
+  }
+
+  function enviarParaJanelaPrincipal() {
+    if (!ultimoCodigo) return;
+
+    // Se esta página foi aberta pelo formulário do HGV,
+    // devolve o código para a janela que abriu o leitor.
+    if (window.opener && !window.opener.closed) {
+      window.opener.postMessage({
+        type: 'CODIGO_PATRIMONIAL',
+        codigo: ultimoCodigo
+      }, '*');
+    }
+
+    // Também copia para a área de transferência como fallback.
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ultimoCodigo).catch(() => {});
+    }
+
+    setStatus('Código enviado: ' + ultimoCodigo, 'ok');
+  }
+
+  async function iniciarComBarcodeDetector() {
+    if (!('BarcodeDetector' in window)) return false;
+
+    try {
+      const formatos = await BarcodeDetector.getSupportedFormats();
+      if (!formatos.includes('code_128')) return false;
+
+      const detector = new BarcodeDetector({ formats: ['code_128'] });
+      lendo = true;
+
+      const loop = async () => {
+        if (!lendo) return;
+        try {
+          if (video.readyState >= 2) {
+            const encontrados = await detector.detect(video);
+            if (encontrados.length) {
+              mostrarResultado(encontrados[0].rawValue, 'CODE_128');
+              return;
+            }
+          }
+        } catch (e) {
+          // Continua tentando; alguns frames podem falhar.
+        }
+        requestAnimationFrame(loop);
+      };
+
+      requestAnimationFrame(loop);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function iniciarZXing() {
+    const hints = new Map();
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.CODE_128]);
+    hints.set(DecodeHintType.TRY_HARDER, true);
+
+    reader = new BrowserMultiFormatReader(hints, {
+      delayBetweenScanAttempts: 120,
+      delayBetweenScanSuccess: 500
+    });
+
+    try {
+      controls = await reader.decodeFromConstraints(
+        {
+          audio: false,
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            aspectRatio: { ideal: 16 / 9 }
+          }
+        },
+        video,
+        (result, error) => {
+          if (result) {
+            mostrarResultado(result.getText(), String(result.getBarcodeFormat?.() || 'CODE_128'));
+          }
+        }
+      );
+      return true;
+    } catch (e) {
+      console.error(e);
+      setStatus('Não foi possível iniciar o leitor: ' + (e.message || e), 'warn');
+      return false;
+    }
+  }
+
+  async function iniciarCamera() {
+    resultBox.style.display = 'none';
+    ultimoCodigo = '';
+    setStatus('Solicitando acesso à câmera...');
+
+    try {
+      if (!window.isSecureContext) {
+        setStatus('Abra esta página pelo endereço HTTPS do GitHub Pages.', 'warn');
+        return;
+      }
+
+      // Inicia primeiro com getUserMedia para garantir câmera traseira
+      // e maior resolução possível no celular.
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
+      });
+
+      video.srcObject = stream;
+      await video.play();
+
+      btnIniciar.style.display = 'none';
+      btnParar.style.display = 'block';
+      setStatus('Câmera ativa. Procurando Code 128...');
+
+      // Primeiro tenta o BarcodeDetector nativo, quando disponível.
+      const nativo = await iniciarComBarcodeDetector();
+      if (nativo) return;
+
+      // Fallback para ZXing.
+      await iniciarZXing();
+    } catch (e) {
+      console.error(e);
+      let mensagem = e.message || String(e);
+      if (e.name === 'NotAllowedError') {
+        mensagem = 'Permissão da câmera negada. Permita a câmera para este site e tente novamente.';
+      } else if (e.name === 'NotFoundError') {
+        mensagem = 'Nenhuma câmera foi encontrada.';
+      } else if (e.name === 'NotReadableError') {
+        mensagem = 'A câmera está sendo usada por outro aplicativo.';
+      }
+      setStatus(mensagem, 'warn');
+      pararCamera();
+    }
+  }
+
+  function pararCamera() {
+    lendo = false;
+
+    try { if (controls) controls.stop(); } catch (e) {}
+    controls = null;
+
+    try { if (reader) reader.reset(); } catch (e) {}
+    reader = null;
+
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
+    }
+
     video.srcObject = null;
-  }
-}
-
-function retornar(codigo) {
-  if (!retorno) {
-    document.getElementById('status').textContent =
-      'Código: ' + codigo + '. Nenhum endereço de retorno foi informado.';
-    return;
+    btnIniciar.style.display = 'block';
+    btnParar.style.display = 'none';
   }
 
-  const url = new URL(retorno);
-  url.searchParams.set('codigo', codigo);
-  window.location.href = url.toString();
-}
+  async function lerImagem(file) {
+    if (!file) return;
 
-function voltarComCodigo() {
-  pararCamera();
-  if (retorno) window.location.href = retorno;
-  else window.close();
-}
+    setStatus('Analisando a foto...');
+    resultBox.style.display = 'none';
 
-function fechar() {
-  pararCamera();
-  if (retorno) window.location.href = retorno;
-  else window.close();
-}
+    try {
+      const url = URL.createObjectURL(file);
 
-window.addEventListener('load', iniciar);
-window.addEventListener('beforeunload', pararCamera);
+      // Usa ZXing para análise de imagem, sempre limitado a Code 128.
+      const hints = new Map();
+      hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.CODE_128]);
+      hints.set(DecodeHintType.TRY_HARDER, true);
+
+      const imageReader = new BrowserMultiFormatReader(hints, {
+        delayBetweenScanAttempts: 100
+      });
+
+      const result = await imageReader.decodeFromImageUrl(url);
+      URL.revokeObjectURL(url);
+      imageReader.reset();
+
+      mostrarResultado(result.getText(), 'CODE_128');
+    } catch (e) {
+      console.error(e);
+      setStatus('Não consegui ler a foto. Tente uma foto mais próxima, nítida e com as barras inteiras.', 'warn');
+    }
+  }
+
+  btnIniciar.addEventListener('click', iniciarCamera);
+  btnParar.addEventListener('click', () => {
+    pararCamera();
+    setStatus('Câmera parada.');
+  });
+  btnUsar.addEventListener('click', enviarParaJanelaPrincipal);
+  btnNovo.addEventListener('click', () => {
+    resultBox.style.display = 'none';
+    ultimoCodigo = '';
+    iniciarCamera();
+  });
+  arquivo.addEventListener('change', e => lerImagem(e.target.files[0]));
+
+  window.addEventListener('beforeunload', pararCamera);
+
+  // Permite que a página também seja chamada diretamente com ?codigo=...
+  // para testes.
+  const params = new URLSearchParams(location.search);
+  if (params.get('codigo')) {
+    mostrarResultado(params.get('codigo'), 'TESTE');
+  }
 </script>
 </body>
 </html>

@@ -2,88 +2,251 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#1a73e8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#000000">
   <title>Leitor Patrimonial HGV</title>
   <script src="https://unpkg.com/@zxing/browser@0.2.1"></script>
   <style>
     * { box-sizing: border-box; }
-    body { margin:0; font-family:Arial,Helvetica,sans-serif; background:#f1f3f4; color:#202124; }
-    .container { width:100%; max-width:680px; margin:auto; padding:14px; }
-    .card { background:#fff; border-radius:16px; padding:18px; margin-bottom:14px; box-shadow:0 2px 10px rgba(0,0,0,.10); }
-    h1 { margin:0 0 6px; font-size:23px; }
-    p { color:#5f6368; line-height:1.4; }
-    .camera { position:relative; width:100%; aspect-ratio:4/3; overflow:hidden; border-radius:12px; background:#111; }
-    video { width:100%; height:100%; object-fit:contain; display:block; background:#111; }
-    .mira { position:absolute; left:5%; right:5%; top:34%; height:32%; border:2px solid rgba(255,255,255,.95); border-radius:8px; box-shadow:0 0 0 9999px rgba(0,0,0,.18); pointer-events:none; }
-    .linha { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
-    .status { margin-top:12px; padding:12px; border-radius:10px; background:#f8f9fa; text-align:center; font-weight:bold; line-height:1.35; }
-    .status.erro { background:#fce8e6; color:#c5221f; }
-    .status.ok { background:#e6f4ea; color:#137333; }
-    input { width:100%; padding:13px; border:1px solid #dadce0; border-radius:9px; font-size:18px; margin-top:8px; }
-    button { width:100%; border:0; border-radius:9px; padding:13px; margin-top:10px; font-size:16px; font-weight:bold; cursor:pointer; }
-    .primary { background:#1a73e8; color:#fff; }
-    .secondary { background:#e8eaed; color:#202124; }
-    .success { background:#188038; color:#fff; }
-    .warning { background:#fbbc04; color:#202124; }
-    .small { font-size:13px; }
-    .mono { font-family:monospace; word-break:break-all; }
-    #zoomBox { display:none; }
-    input[type=range] { margin:8px 0 0; padding:0; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #fff;
+    }
+    body { min-height: 100dvh; }
+
+    .app {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100dvh;
+      background: #000;
+      overflow: hidden;
+    }
+
+    #video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #000;
+    }
+
+    .top {
+      position: absolute;
+      z-index: 5;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: max(14px, env(safe-area-inset-top)) 14px 14px;
+      background: linear-gradient(to bottom, rgba(0,0,0,.72), rgba(0,0,0,0));
+      pointer-events: none;
+    }
+
+    .titulo {
+      font-size: 19px;
+      font-weight: 700;
+      margin: 0 0 5px;
+      text-shadow: 0 1px 3px #000;
+    }
+
+    .subtitulo {
+      font-size: 14px;
+      opacity: .92;
+      margin: 0;
+      text-shadow: 0 1px 3px #000;
+    }
+
+    .mira {
+      position: absolute;
+      z-index: 3;
+      left: 7%;
+      right: 7%;
+      top: 37%;
+      height: 26%;
+      border: 3px solid rgba(255,255,255,.95);
+      border-radius: 10px;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,.28), 0 0 18px rgba(255,255,255,.25);
+      pointer-events: none;
+    }
+
+    .linha-mira {
+      position: absolute;
+      z-index: 4;
+      left: 7%;
+      right: 7%;
+      top: 50%;
+      height: 2px;
+      background: rgba(255,60,60,.95);
+      box-shadow: 0 0 7px rgba(255,60,60,.7);
+      pointer-events: none;
+    }
+
+    .bottom {
+      position: absolute;
+      z-index: 6;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 12px 14px max(14px, env(safe-area-inset-bottom));
+      background: linear-gradient(to top, rgba(0,0,0,.88), rgba(0,0,0,.55), rgba(0,0,0,0));
+    }
+
+    #status {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 9px 12px;
+      border-radius: 10px;
+      background: rgba(0,0,0,.60);
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 9px;
+    }
+    #status.erro { background: rgba(170,0,0,.78); }
+    #status.ok { background: rgba(0,110,50,.82); }
+
+    .botoes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+    }
+
+    button {
+      min-height: 48px;
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      background: rgba(40,40,40,.88);
+      box-shadow: 0 2px 8px rgba(0,0,0,.35);
+    }
+    button:active { transform: scale(.98); }
+    #btnReiniciar { background: rgba(26,115,232,.94); }
+    #btnVoltar { background: rgba(55,55,55,.94); }
+
+    #zoomBox {
+      display: none;
+      margin-bottom: 9px;
+      background: rgba(0,0,0,.55);
+      border-radius: 9px;
+      padding: 7px 10px;
+    }
+    #zoomBox label { font-size: 12px; }
+    #zoom { width: 100%; margin: 4px 0 0; }
+
+    #diagnostico {
+      display: none;
+      position: absolute;
+      z-index: 10;
+      left: 12px;
+      right: 12px;
+      top: 105px;
+      max-height: 35vh;
+      overflow: auto;
+      background: rgba(0,0,0,.84);
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .mono { font-family: monospace; word-break: break-all; }
+
+    #semCamera {
+      display: none;
+      position: absolute;
+      z-index: 8;
+      inset: 0;
+      align-items: center;
+      justify-content: center;
+      padding: 25px;
+      text-align: center;
+      background: rgba(0,0,0,.92);
+    }
+    #semCamera .caixa {
+      width: 100%;
+      max-width: 420px;
+    }
+    #semCamera h2 { font-size: 21px; margin: 0 0 10px; }
+    #semCamera p { color: #ddd; line-height: 1.45; font-size: 15px; }
+
+    @media (orientation: landscape) {
+      .mira { top: 24%; height: 52%; }
+      .linha-mira { top: 50%; }
+    }
   </style>
 </head>
 <body>
-<div class="container">
-  <div class="card">
-    <h1>📷 Leitor Patrimonial HGV</h1>
-    <p>Posicione o código de barras <strong>Code 128</strong> dentro da área marcada.</p>
+<div class="app">
+  <video id="video" autoplay muted playsinline></video>
 
-    <div class="camera">
-      <video id="video" autoplay muted playsinline></video>
-      <div class="mira"></div>
+  <div class="top">
+    <div class="titulo">📷 Leitor Patrimonial HGV</div>
+    <p class="subtitulo">Aponte para o código de barras e mantenha-o dentro da marcação.</p>
+  </div>
+
+  <div class="mira"></div>
+  <div class="linha-mira"></div>
+
+  <div id="diagnostico"></div>
+
+  <div id="semCamera">
+    <div class="caixa">
+      <h2>Não foi possível acessar a câmera</h2>
+      <p id="detalheCamera">Verifique a permissão da câmera no navegador e tente novamente.</p>
+      <button id="btnTentarCamera">🔄 TENTAR NOVAMENTE</button>
+      <button id="btnVoltarErro">↩ VOLTAR PARA O SISTEMA</button>
     </div>
+  </div>
 
-    <div id="status" class="status">Iniciando câmera...</div>
+  <div class="bottom">
+    <div id="status">Iniciando câmera...</div>
 
     <div id="zoomBox">
-      <label class="small">Aproximação da câmera</label>
+      <label for="zoom">Aproximação da câmera</label>
       <input id="zoom" type="range" min="1" max="3" step="0.1" value="1">
     </div>
 
-    <div class="linha">
-      <button id="btnReiniciar" class="primary" type="button">🔄 TENTAR NOVAMENTE</button>
-      <button id="btnFechar" class="secondary" type="button">✖ FECHAR LEITOR</button>
+    <div class="botoes">
+      <button id="btnReiniciar" type="button">🔄 TENTAR NOVAMENTE</button>
+      <button id="btnVoltar" type="button">↩ VOLTAR PARA O SISTEMA</button>
     </div>
   </div>
-
-  <div class="card">
-    <strong>Se a câmera não conseguir ler</strong>
-    <p class="small">O código impresso neste patrimônio tem 16 dígitos. Você também pode informar o código manualmente.</p>
-    <input id="codigoManual" inputmode="numeric" maxlength="16" placeholder="2301010145262023">
-    <button id="btnManual" class="success" type="button">USAR CÓDIGO INFORMADO</button>
-  </div>
-
-  <div id="diagnostico" class="card small" style="display:none;"></div>
 </div>
 
 <script>
   let leitor = null;
   let controles = null;
+  let streamCamera = null;
+  let trackCamera = null;
   let lendo = false;
   let finalizado = false;
   let detectorNativo = null;
   let loopNativoAtivo = false;
-  let trackCamera = null;
 
   const video = document.getElementById('video');
   const status = document.getElementById('status');
   const zoomBox = document.getElementById('zoomBox');
   const zoom = document.getElementById('zoom');
   const diagnostico = document.getElementById('diagnostico');
+  const semCamera = document.getElementById('semCamera');
+  const detalheCamera = document.getElementById('detalheCamera');
 
   function atualizarStatus(texto, tipo) {
     status.textContent = texto;
-    status.className = 'status' + (tipo === 'erro' ? ' erro' : tipo === 'ok' ? ' ok' : '');
+    status.className = '';
+    status.id = 'status';
+    if (tipo === 'erro') status.classList.add('erro');
+    if (tipo === 'ok') status.classList.add('ok');
   }
 
   function limparCodigo(valor) {
@@ -91,21 +254,29 @@
   }
 
   function extrairCodigoPatrimonial(valor) {
-    const bruto = String(valor || '').trim();
-    const somenteNumeros = limparCodigo(bruto);
-
-    // Caso normal: o decoder devolveu exatamente os 16 dígitos.
-    if (/^\d{16}$/.test(somenteNumeros)) return somenteNumeros;
-
-    // Alguns leitores devolvem separadores, espaços ou prefixos/sufixos.
-    // Procuramos qualquer sequência de 16 dígitos dentro do resultado.
-    const encontrado = somenteNumeros.match(/\d{16}/);
+    const numeros = limparCodigo(valor);
+    if (/^\d{16}$/.test(numeros)) return numeros;
+    const encontrado = numeros.match(/\d{16}/);
     return encontrado ? encontrado[0] : '';
+  }
+
+  function escapar(texto) {
+    return String(texto || '')
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#039;');
   }
 
   function mostrarDiagnostico(texto) {
     diagnostico.style.display = 'block';
     diagnostico.innerHTML = texto;
+  }
+
+  function esconderDiagnostico() {
+    diagnostico.style.display = 'none';
+    diagnostico.innerHTML = '';
   }
 
   function encerrarCamera() {
@@ -122,25 +293,42 @@
       leitor = null;
     }
 
-    if (video && video.srcObject) {
+    if (streamCamera) {
       try {
-        video.srcObject.getTracks().forEach(track => track.stop());
+        streamCamera.getTracks().forEach(function(track) { track.stop(); });
       } catch (e) {}
+      streamCamera = null;
+    }
+
+    if (video.srcObject) {
+      try { video.srcObject.getTracks().forEach(function(track) { track.stop(); }); } catch (e) {}
       video.srcObject = null;
     }
 
     trackCamera = null;
+    zoomBox.style.display = 'none';
+  }
+
+  function voltarParaSistema() {
+    encerrarCamera();
+    try {
+      if (window.opener && !window.opener.closed) {
+        window.opener.focus();
+      }
+    } catch (e) {}
+    try { window.close(); } catch (e) {}
+    atualizarStatus('Retornando para o sistema...');
   }
 
   function enviarCodigo(codigo, origem) {
     const limpo = extrairCodigoPatrimonial(codigo);
 
     if (!/^\d{16}$/.test(limpo)) {
-      atualizarStatus('Código detectado, mas não consegui obter os 16 dígitos.', 'erro');
+      atualizarStatus('Leitura parcial. Aponte novamente para o código.', 'erro');
       mostrarDiagnostico(
-        '<strong>Leitura parcial:</strong><br>' +
-        'Resultado bruto: <span class="mono">' + escapar(String(codigo || '')) + '</span><br>' +
-        'Somente números: <span class="mono">' + escapar(limparCodigo(codigo)) + '</span><br>' +
+        '<strong>Leitura parcial</strong><br>' +
+        'Resultado: <span class="mono">' + escapar(String(codigo || '')) + '</span><br>' +
+        'Números: <span class="mono">' + escapar(limparCodigo(codigo)) + '</span><br>' +
         'Método: ' + escapar(origem || 'scanner')
       );
       return false;
@@ -161,21 +349,12 @@
 
       setTimeout(function() {
         try { window.close(); } catch (e) {}
-      }, 250);
+      }, 300);
       return true;
     }
 
-    atualizarStatus('Leitura concluída, mas não foi encontrada a janela principal.', 'erro');
+    atualizarStatus('Código lido, mas a janela principal não foi encontrada.', 'erro');
     return true;
-  }
-
-  function escapar(texto) {
-    return String(texto || '')
-      .replace(/&/g,'&amp;')
-      .replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;')
-      .replace(/"/g,'&quot;')
-      .replace(/'/g,'&#039;');
   }
 
   async function configurarZoom(stream) {
@@ -189,12 +368,10 @@
 
       const min = Number(caps.zoom.min || 1);
       const max = Number(caps.zoom.max || 3);
-      const atual = Number(caps.zoom.min || 1);
-
       zoom.min = String(min);
       zoom.max = String(max);
       zoom.step = String(caps.zoom.step || 0.1);
-      zoom.value = String(Math.min(Math.max(atual, min), max));
+      zoom.value = String(min);
       zoomBox.style.display = 'block';
 
       zoom.oninput = async function() {
@@ -224,17 +401,14 @@
             if (resultados && resultados.length) {
               for (const item of resultados) {
                 if (item && item.rawValue) {
-                  const bruto = item.rawValue;
-                  if (enviarCodigo(bruto, 'BarcodeDetector / code_128')) return;
+                  if (enviarCodigo(item.rawValue, 'BarcodeDetector / Code 128')) return;
                 }
               }
             }
           } catch (e) {}
         }
 
-        if (loopNativoAtivo && !finalizado) {
-          setTimeout(detectar, 100);
-        }
+        if (loopNativoAtivo && !finalizado) setTimeout(detectar, 120);
       }
 
       detectar();
@@ -245,33 +419,23 @@
     }
   }
 
-  async function iniciarZXing() {
-    /*
-     * @zxing/browser 0.2.1 aceita possibleFormats diretamente.
-     * BarcodeFormat.CODE_128 corresponde ao valor 4 nessa versão.
-     * Também ativamos TRY_HARDER usando a chave interna do enum
-     * DecodeHintType.POSSIBLE_FORMATS=2 e TRY_HARDER=3.
-     */
+  async function iniciarZXingComStream(stream) {
+    if (!window.ZXingBrowser || !ZXingBrowser.BrowserMultiFormatReader) {
+      throw new Error('Leitor de código de barras não carregado. Verifique a conexão com a internet.');
+    }
+
     leitor = new ZXingBrowser.BrowserMultiFormatReader();
-    leitor.possibleFormats = [4];
+    leitor.possibleFormats = [4]; // BarcodeFormat.CODE_128
 
     try {
-      leitor.hints.set(3, true);
+      leitor.hints.set(3, true); // TRY_HARDER
       leitor.setHints(leitor.hints);
     } catch (e) {}
 
-    controles = await leitor.decodeFromConstraints(
-      {
-        audio: false,
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 2560, min: 1280 },
-          height: { ideal: 1440, min: 720 },
-          frameRate: { ideal: 30, max: 30 }
-        }
-      },
+    controles = await leitor.decodeFromStream(
+      stream,
       video,
-      function(resultado, erro) {
+      function(resultado) {
         if (!lendo || finalizado || !resultado) return;
 
         const bruto = resultado.getText();
@@ -280,7 +444,7 @@
         if (/^\d{16}$/.test(codigo)) {
           enviarCodigo(codigo, 'ZXing / Code 128');
         } else {
-          atualizarStatus('Código de barras detectado. Ajustando a leitura...', '');
+          atualizarStatus('Código detectado. Ajustando a leitura...', '');
           mostrarDiagnostico(
             '<strong>ZXing detectou um valor:</strong><br>' +
             'Bruto: <span class="mono">' + escapar(bruto) + '</span><br>' +
@@ -289,66 +453,116 @@
         }
       }
     );
+  }
 
-    if (video.srcObject) await configurarZoom(video.srcObject);
+  async function abrirStreamDaCamera() {
+    // Primeiro abre a câmera diretamente com getUserMedia.
+    // Assim, a câmera é iniciada antes de qualquer tentativa de leitura.
+    const tentativas = [
+      {
+        audio: false,
+        video: {
+          facingMode: { exact: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30, max: 30 }
+        }
+      },
+      {
+        audio: false,
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      },
+      { audio: false, video: true }
+    ];
+
+    let ultimoErro = null;
+
+    for (const constraints of tentativas) {
+      try {
+        return await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (erro) {
+        ultimoErro = erro;
+        if (erro && (erro.name === 'NotAllowedError' || erro.name === 'SecurityError')) {
+          throw erro;
+        }
+      }
+    }
+
+    throw ultimoErro || new Error('Não foi possível iniciar a câmera.');
   }
 
   async function iniciarCamera() {
     encerrarCamera();
     finalizado = false;
-    diagnostico.style.display = 'none';
-    atualizarStatus('Solicitando acesso à câmera...');
+    esconderDiagnostico();
+    semCamera.style.display = 'none';
+    atualizarStatus('Abrindo câmera...');
+
+    if (!window.isSecureContext) {
+      atualizarStatus('O leitor precisa ser aberto em HTTPS.', 'erro');
+      semCamera.style.display = 'flex';
+      detalheCamera.textContent = 'Abra o endereço do GitHub Pages em HTTPS. Não use um arquivo local.';
+      return;
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      atualizarStatus('Este navegador não disponibiliza acesso à câmera.', 'erro');
+      semCamera.style.display = 'flex';
+      detalheCamera.textContent = 'Use o Chrome no celular e abra o leitor pelo endereço HTTPS do GitHub Pages.';
+      return;
+    }
 
     try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Este navegador não disponibiliza acesso à câmera.');
-      }
+      streamCamera = await abrirStreamDaCamera();
+      video.srcObject = streamCamera;
+      video.muted = true;
+      video.setAttribute('playsinline', '');
+      await video.play();
+      await configurarZoom(streamCamera);
 
       lendo = true;
+      atualizarStatus('Câmera ativa. Aponte para o Code 128...');
 
-      // Primeiro usamos o detector nativo do Chrome, quando disponível.
-      // Ele tem suporte explícito a code_128.
-      const nativo = await iniciarDetectorNativo();
+      // Leitura nativa, quando o Chrome oferecer suporte a Code 128.
+      await iniciarDetectorNativo();
 
-      if (nativo) {
-        atualizarStatus('Câmera ativa. Procure o Code 128 automaticamente...');
-      } else {
-        atualizarStatus('Câmera ativa. Usando leitor Code 128 de alta precisão...');
-      }
-
-      // ZXing continua ativo como segunda camada de leitura.
-      await iniciarZXing();
+      // ZXing usa o MESMO stream já aberto, evitando uma segunda solicitação de câmera.
+      await iniciarZXingComStream(streamCamera);
 
     } catch (erro) {
       console.error('Erro ao abrir câmera:', erro);
       encerrarCamera();
+
       let mensagem = erro && erro.message ? erro.message : 'Não foi possível acessar a câmera.';
       if (erro && erro.name === 'NotAllowedError') {
-        mensagem = 'Acesso à câmera foi negado. Permita a câmera para este site e tente novamente.';
+        mensagem = 'O navegador recusou o acesso à câmera.';
+        detalheCamera.textContent = 'A câmera está tecnicamente permitida, mas o navegador recusou esta tentativa. Feche o leitor, abra-o novamente pelo sistema e, se necessário, recarregue a página do GitHub Pages.';
+      } else if (erro && erro.name === 'NotFoundError') {
+        mensagem = 'Nenhuma câmera foi encontrada neste aparelho.';
+        detalheCamera.textContent = 'Verifique se o aparelho possui câmera e se outro aplicativo não está usando-a.';
+      } else if (erro && erro.name === 'NotReadableError') {
+        mensagem = 'A câmera está ocupada por outro aplicativo.';
+        detalheCamera.textContent = 'Feche outros aplicativos que possam estar usando a câmera e tente novamente.';
+      } else {
+        detalheCamera.textContent = mensagem;
       }
+
       atualizarStatus(mensagem, 'erro');
+      semCamera.style.display = 'flex';
     }
   }
 
-  document.getElementById('btnReiniciar').addEventListener('click', function() {
-    iniciarCamera();
-  });
-
-  document.getElementById('btnFechar').addEventListener('click', function() {
-    encerrarCamera();
-    try { window.close(); } catch (e) {}
-    atualizarStatus('Leitor fechado.');
-  });
-
-  document.getElementById('btnManual').addEventListener('click', function() {
-    enviarCodigo(document.getElementById('codigoManual').value, 'entrada manual');
-  });
-
-  document.getElementById('codigoManual').addEventListener('keydown', function(event) {
-    if (event.key === 'Enter') enviarCodigo(this.value, 'entrada manual');
-  });
+  document.getElementById('btnReiniciar').addEventListener('click', iniciarCamera);
+  document.getElementById('btnTentarCamera').addEventListener('click', iniciarCamera);
+  document.getElementById('btnVoltar').addEventListener('click', voltarParaSistema);
+  document.getElementById('btnVoltarErro').addEventListener('click', voltarParaSistema);
 
   window.addEventListener('beforeunload', encerrarCamera);
+
   iniciarCamera();
 </script>
 </body>

@@ -309,15 +309,27 @@
     zoomBox.style.display = 'none';
   }
 
+  function obterUrlRetorno() {
+    try {
+      const parametros = new URLSearchParams(window.location.search);
+      return parametros.get('retorno') || '';
+    } catch (e) {
+      return '';
+    }
+  }
+
   function voltarParaSistema() {
     encerrarCamera();
-    try {
-      if (window.opener && !window.opener.closed) {
-        window.opener.focus();
-      }
-    } catch (e) {}
-    try { window.close(); } catch (e) {}
-    atualizarStatus('Retornando para o sistema...');
+
+    const retorno = obterUrlRetorno();
+
+    if (retorno) {
+      atualizarStatus('Retornando para o sistema...');
+      window.location.replace(retorno);
+      return;
+    }
+
+    atualizarStatus('Não foi possível identificar a página do sistema.', 'erro');
   }
 
   function enviarCodigo(codigo, origem) {
@@ -338,23 +350,34 @@
     finalizado = true;
     lendo = false;
 
-    atualizarStatus('Código identificado: ' + limpo, 'ok');
+    atualizarStatus('✓ Código identificado: ' + limpo, 'ok');
     encerrarCamera();
 
-    if (window.opener && !window.opener.closed) {
-      window.opener.postMessage({
-        tipo: 'HGV_CODIGO_BARRAS',
-        codigo: limpo
-      }, '*');
+    const retorno = obterUrlRetorno();
 
-      setTimeout(function() {
-        try { window.close(); } catch (e) {}
-      }, 300);
+    if (!retorno) {
+      atualizarStatus('Código lido, mas não foi possível retornar ao sistema.', 'erro');
       return true;
     }
 
-    atualizarStatus('Código lido, mas a janela principal não foi encontrada.', 'erro');
-    return true;
+    try {
+      const urlRetorno = new URL(retorno);
+      urlRetorno.searchParams.set('codigo', limpo);
+
+      /*
+       * Retorna pela MESMA aba.
+       * Não depende de popup, opener ou postMessage.
+       */
+      setTimeout(function() {
+        window.location.replace(urlRetorno.toString());
+      }, 500);
+
+      return true;
+
+    } catch (e) {
+      atualizarStatus('Código lido, mas o endereço de retorno é inválido.', 'erro');
+      return true;
+    }
   }
 
   async function configurarZoom(stream) {

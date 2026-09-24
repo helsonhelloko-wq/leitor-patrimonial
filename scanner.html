@@ -8,84 +8,28 @@
   <script src="https://unpkg.com/@zxing/browser@0.2.1"></script>
   <style>
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      background: #f1f3f4;
-      color: #202124;
-    }
-    .container {
-      width: 100%;
-      max-width: 620px;
-      margin: auto;
-      padding: 18px;
-    }
-    .card {
-      background: #fff;
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 16px;
-      box-shadow: 0 2px 10px rgba(0,0,0,.10);
-    }
-    h1 { margin: 0 0 6px; font-size: 24px; }
-    p { color: #5f6368; line-height: 1.45; }
-    .camera {
-      position: relative;
-      width: 100%;
-      aspect-ratio: 4 / 3;
-      overflow: hidden;
-      border-radius: 12px;
-      background: #111;
-    }
-    video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-    .mira {
-      position: absolute;
-      left: 8%;
-      right: 8%;
-      top: 35%;
-      height: 30%;
-      border: 2px solid rgba(255,255,255,.9);
-      border-radius: 8px;
-      box-shadow: 0 0 0 9999px rgba(0,0,0,.20);
-      pointer-events: none;
-    }
-    .status {
-      margin-top: 14px;
-      padding: 13px;
-      border-radius: 10px;
-      background: #f8f9fa;
-      text-align: center;
-      font-weight: bold;
-    }
-    input {
-      width: 100%;
-      padding: 14px;
-      border: 1px solid #dadce0;
-      border-radius: 9px;
-      font-size: 18px;
-      margin-top: 8px;
-    }
-    button {
-      width: 100%;
-      border: 0;
-      border-radius: 9px;
-      padding: 14px;
-      margin-top: 12px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .primary { background: #1a73e8; color: white; }
-    .secondary { background: #e8eaed; color: #202124; }
-    .success { background: #188038; color: white; }
-    .erro { background: #fce8e6; color: #c5221f; }
-    .hidden { display: none; }
-    .small { font-size: 13px; }
+    body { margin:0; font-family:Arial,Helvetica,sans-serif; background:#f1f3f4; color:#202124; }
+    .container { width:100%; max-width:680px; margin:auto; padding:14px; }
+    .card { background:#fff; border-radius:16px; padding:18px; margin-bottom:14px; box-shadow:0 2px 10px rgba(0,0,0,.10); }
+    h1 { margin:0 0 6px; font-size:23px; }
+    p { color:#5f6368; line-height:1.4; }
+    .camera { position:relative; width:100%; aspect-ratio:4/3; overflow:hidden; border-radius:12px; background:#111; }
+    video { width:100%; height:100%; object-fit:contain; display:block; background:#111; }
+    .mira { position:absolute; left:5%; right:5%; top:34%; height:32%; border:2px solid rgba(255,255,255,.95); border-radius:8px; box-shadow:0 0 0 9999px rgba(0,0,0,.18); pointer-events:none; }
+    .linha { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+    .status { margin-top:12px; padding:12px; border-radius:10px; background:#f8f9fa; text-align:center; font-weight:bold; line-height:1.35; }
+    .status.erro { background:#fce8e6; color:#c5221f; }
+    .status.ok { background:#e6f4ea; color:#137333; }
+    input { width:100%; padding:13px; border:1px solid #dadce0; border-radius:9px; font-size:18px; margin-top:8px; }
+    button { width:100%; border:0; border-radius:9px; padding:13px; margin-top:10px; font-size:16px; font-weight:bold; cursor:pointer; }
+    .primary { background:#1a73e8; color:#fff; }
+    .secondary { background:#e8eaed; color:#202124; }
+    .success { background:#188038; color:#fff; }
+    .warning { background:#fbbc04; color:#202124; }
+    .small { font-size:13px; }
+    .mono { font-family:monospace; word-break:break-all; }
+    #zoomBox { display:none; }
+    input[type=range] { margin:8px 0 0; padding:0; }
   </style>
 </head>
 <body>
@@ -99,17 +43,27 @@
       <div class="mira"></div>
     </div>
 
-    <div id="status" class="status">Solicitando acesso à câmera...</div>
+    <div id="status" class="status">Iniciando câmera...</div>
 
-    <button id="btnFechar" class="secondary" type="button">✖ FECHAR LEITOR</button>
+    <div id="zoomBox">
+      <label class="small">Aproximação da câmera</label>
+      <input id="zoom" type="range" min="1" max="3" step="0.1" value="1">
+    </div>
+
+    <div class="linha">
+      <button id="btnReiniciar" class="primary" type="button">🔄 TENTAR NOVAMENTE</button>
+      <button id="btnFechar" class="secondary" type="button">✖ FECHAR LEITOR</button>
+    </div>
   </div>
 
   <div class="card">
-    <strong>Se a câmera não funcionar</strong>
-    <p class="small">Você pode informar manualmente os 16 dígitos do código patrimonial.</p>
-    <input id="codigoManual" inputmode="numeric" maxlength="16" placeholder="0000000000000000">
+    <strong>Se a câmera não conseguir ler</strong>
+    <p class="small">O código impresso neste patrimônio tem 16 dígitos. Você também pode informar o código manualmente.</p>
+    <input id="codigoManual" inputmode="numeric" maxlength="16" placeholder="2301010145262023">
     <button id="btnManual" class="success" type="button">USAR CÓDIGO INFORMADO</button>
   </div>
+
+  <div id="diagnostico" class="card small" style="display:none;"></div>
 </div>
 
 <script>
@@ -117,21 +71,46 @@
   let controles = null;
   let lendo = false;
   let finalizado = false;
+  let detectorNativo = null;
+  let loopNativoAtivo = false;
+  let trackCamera = null;
 
   const video = document.getElementById('video');
   const status = document.getElementById('status');
+  const zoomBox = document.getElementById('zoomBox');
+  const zoom = document.getElementById('zoom');
+  const diagnostico = document.getElementById('diagnostico');
 
-  function atualizarStatus(texto, erro) {
+  function atualizarStatus(texto, tipo) {
     status.textContent = texto;
-    status.className = 'status' + (erro ? ' erro' : '');
+    status.className = 'status' + (tipo === 'erro' ? ' erro' : tipo === 'ok' ? ' ok' : '');
   }
 
   function limparCodigo(valor) {
     return String(valor || '').replace(/\D/g, '');
   }
 
+  function extrairCodigoPatrimonial(valor) {
+    const bruto = String(valor || '').trim();
+    const somenteNumeros = limparCodigo(bruto);
+
+    // Caso normal: o decoder devolveu exatamente os 16 dígitos.
+    if (/^\d{16}$/.test(somenteNumeros)) return somenteNumeros;
+
+    // Alguns leitores devolvem separadores, espaços ou prefixos/sufixos.
+    // Procuramos qualquer sequência de 16 dígitos dentro do resultado.
+    const encontrado = somenteNumeros.match(/\d{16}/);
+    return encontrado ? encontrado[0] : '';
+  }
+
+  function mostrarDiagnostico(texto) {
+    diagnostico.style.display = 'block';
+    diagnostico.innerHTML = texto;
+  }
+
   function encerrarCamera() {
     lendo = false;
+    loopNativoAtivo = false;
 
     if (controles) {
       try { controles.stop(); } catch (e) {}
@@ -149,98 +128,211 @@
       } catch (e) {}
       video.srcObject = null;
     }
+
+    trackCamera = null;
   }
 
-  function enviarCodigo(codigo) {
-    const limpo = limparCodigo(codigo);
+  function enviarCodigo(codigo, origem) {
+    const limpo = extrairCodigoPatrimonial(codigo);
 
     if (!/^\d{16}$/.test(limpo)) {
-      atualizarStatus('O código precisa possuir exatamente 16 dígitos.', true);
-      return;
+      atualizarStatus('Código detectado, mas não consegui obter os 16 dígitos.', 'erro');
+      mostrarDiagnostico(
+        '<strong>Leitura parcial:</strong><br>' +
+        'Resultado bruto: <span class="mono">' + escapar(String(codigo || '')) + '</span><br>' +
+        'Somente números: <span class="mono">' + escapar(limparCodigo(codigo)) + '</span><br>' +
+        'Método: ' + escapar(origem || 'scanner')
+      );
+      return false;
     }
 
-    if (finalizado) return;
+    if (finalizado) return true;
     finalizado = true;
+    lendo = false;
 
-    atualizarStatus('Código identificado: ' + limpo, false);
+    atualizarStatus('Código identificado: ' + limpo, 'ok');
     encerrarCamera();
 
     if (window.opener && !window.opener.closed) {
       window.opener.postMessage({
         tipo: 'HGV_CODIGO_BARRAS',
         codigo: limpo
-      }, '*');
+      }, 'https://helsonhelloko-wq.github.io');
 
       setTimeout(function() {
         try { window.close(); } catch (e) {}
       }, 250);
-
-      return;
+      return true;
     }
 
-    atualizarStatus('Leitura concluída. Esta janela foi aberta sem uma página principal para receber o código.', true);
+    atualizarStatus('Leitura concluída, mas não foi encontrada a janela principal.', 'erro');
+    return true;
+  }
+
+  function escapar(texto) {
+    return String(texto || '')
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#039;');
+  }
+
+  async function configurarZoom(stream) {
+    try {
+      const tracks = stream.getVideoTracks();
+      trackCamera = tracks && tracks[0] ? tracks[0] : null;
+      if (!trackCamera || !trackCamera.getCapabilities) return;
+
+      const caps = trackCamera.getCapabilities();
+      if (!caps.zoom) return;
+
+      const min = Number(caps.zoom.min || 1);
+      const max = Number(caps.zoom.max || 3);
+      const atual = Number(caps.zoom.min || 1);
+
+      zoom.min = String(min);
+      zoom.max = String(max);
+      zoom.step = String(caps.zoom.step || 0.1);
+      zoom.value = String(Math.min(Math.max(atual, min), max));
+      zoomBox.style.display = 'block';
+
+      zoom.oninput = async function() {
+        try {
+          await trackCamera.applyConstraints({ advanced: [{ zoom: Number(this.value) }] });
+        } catch (e) {}
+      };
+    } catch (e) {}
+  }
+
+  async function iniciarDetectorNativo() {
+    if (!('BarcodeDetector' in window)) return false;
+
+    try {
+      const suportados = await BarcodeDetector.getSupportedFormats();
+      if (!suportados.includes('code_128')) return false;
+
+      detectorNativo = new BarcodeDetector({ formats: ['code_128'] });
+      loopNativoAtivo = true;
+
+      async function detectar() {
+        if (!loopNativoAtivo || finalizado) return;
+
+        if (video.readyState >= 2) {
+          try {
+            const resultados = await detectorNativo.detect(video);
+            if (resultados && resultados.length) {
+              for (const item of resultados) {
+                if (item && item.rawValue) {
+                  const bruto = item.rawValue;
+                  if (enviarCodigo(bruto, 'BarcodeDetector / code_128')) return;
+                }
+              }
+            }
+          } catch (e) {}
+        }
+
+        if (loopNativoAtivo && !finalizado) {
+          setTimeout(detectar, 100);
+        }
+      }
+
+      detectar();
+      return true;
+    } catch (e) {
+      detectorNativo = null;
+      return false;
+    }
+  }
+
+  async function iniciarZXing() {
+    /*
+     * @zxing/browser 0.2.1 aceita possibleFormats diretamente.
+     * BarcodeFormat.CODE_128 corresponde ao valor 4 nessa versão.
+     * Também ativamos TRY_HARDER usando a chave interna do enum
+     * DecodeHintType.POSSIBLE_FORMATS=2 e TRY_HARDER=3.
+     */
+    leitor = new ZXingBrowser.BrowserMultiFormatReader();
+    leitor.possibleFormats = [4];
+
+    try {
+      leitor.hints.set(3, true);
+      leitor.setHints(leitor.hints);
+    } catch (e) {}
+
+    controles = await leitor.decodeFromConstraints(
+      {
+        audio: false,
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 2560, min: 1280 },
+          height: { ideal: 1440, min: 720 },
+          frameRate: { ideal: 30, max: 30 }
+        }
+      },
+      video,
+      function(resultado, erro) {
+        if (!lendo || finalizado || !resultado) return;
+
+        const bruto = resultado.getText();
+        const codigo = extrairCodigoPatrimonial(bruto);
+
+        if (/^\d{16}$/.test(codigo)) {
+          enviarCodigo(codigo, 'ZXing / Code 128');
+        } else {
+          atualizarStatus('Código de barras detectado. Ajustando a leitura...', '');
+          mostrarDiagnostico(
+            '<strong>ZXing detectou um valor:</strong><br>' +
+            'Bruto: <span class="mono">' + escapar(bruto) + '</span><br>' +
+            'Números: <span class="mono">' + escapar(limparCodigo(bruto)) + '</span>'
+          );
+        }
+      }
+    );
+
+    if (video.srcObject) await configurarZoom(video.srcObject);
   }
 
   async function iniciarCamera() {
+    encerrarCamera();
+    finalizado = false;
+    diagnostico.style.display = 'none';
+    atualizarStatus('Solicitando acesso à câmera...');
+
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Este navegador não disponibiliza acesso à câmera.');
       }
 
-      atualizarStatus('Solicitando acesso à câmera...');
-
-      /*
-       * BrowserMultiFormatReader pertence ao @zxing/browser 0.2.1.
-       * BarcodeFormat.CODE_128 é o quinto valor do enum (índice 4).
-       * Limitamos o leitor a Code 128 para evitar tentativas desnecessárias
-       * de QR, EAN, PDF417 etc.
-       */
-      leitor = new ZXingBrowser.BrowserMultiFormatReader();
-      leitor.possibleFormats = [4];
-
-      atualizarStatus('Aponte a câmera para o código Code 128...');
       lendo = true;
 
-      controles = await leitor.decodeFromConstraints(
-        {
-          audio: false,
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
-          }
-        },
-        video,
-        function(resultado, erro) {
-          if (!lendo || finalizado || !resultado) return;
+      // Primeiro usamos o detector nativo do Chrome, quando disponível.
+      // Ele tem suporte explícito a code_128.
+      const nativo = await iniciarDetectorNativo();
 
-          const codigo = limparCodigo(resultado.getText());
+      if (nativo) {
+        atualizarStatus('Câmera ativa. Procure o Code 128 automaticamente...');
+      } else {
+        atualizarStatus('Câmera ativa. Usando leitor Code 128 de alta precisão...');
+      }
 
-          if (codigo.length !== 16) {
-            atualizarStatus('Código detectado, mas não possui 16 dígitos.');
-            return;
-          }
-
-          enviarCodigo(codigo);
-        }
-      );
+      // ZXing continua ativo como segunda camada de leitura.
+      await iniciarZXing();
 
     } catch (erro) {
-      console.error(erro);
+      console.error('Erro ao abrir câmera:', erro);
       encerrarCamera();
-
-      let mensagem =
-        erro && erro.message
-          ? erro.message
-          : 'Não foi possível acessar a câmera.';
-
+      let mensagem = erro && erro.message ? erro.message : 'Não foi possível acessar a câmera.';
       if (erro && erro.name === 'NotAllowedError') {
         mensagem = 'Acesso à câmera foi negado. Permita a câmera para este site e tente novamente.';
       }
-
-      atualizarStatus(mensagem, true);
+      atualizarStatus(mensagem, 'erro');
     }
   }
+
+  document.getElementById('btnReiniciar').addEventListener('click', function() {
+    iniciarCamera();
+  });
 
   document.getElementById('btnFechar').addEventListener('click', function() {
     encerrarCamera();
@@ -249,17 +341,15 @@
   });
 
   document.getElementById('btnManual').addEventListener('click', function() {
-    enviarCodigo(document.getElementById('codigoManual').value);
+    enviarCodigo(document.getElementById('codigoManual').value, 'entrada manual');
   });
 
   document.getElementById('codigoManual').addEventListener('keydown', function(event) {
-    if (event.key === 'Enter') {
-      enviarCodigo(this.value);
-    }
+    if (event.key === 'Enter') enviarCodigo(this.value, 'entrada manual');
   });
 
   window.addEventListener('beforeunload', encerrarCamera);
-  window.addEventListener('load', iniciarCamera);
+  iniciarCamera();
 </script>
 </body>
 </html>

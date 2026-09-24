@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1a73e8">
+  <title>Leitor Patrimonial HGV</title>
+  <script src="https://unpkg.com/@zxing/browser@0.2.1"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f1f3f4;
+      color: #202124;
+    }
+    .container {
+      width: 100%;
+      max-width: 620px;
+      margin: auto;
+      padding: 18px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.10);
+    }
+    h1 { margin: 0 0 6px; font-size: 24px; }
+    p { color: #5f6368; line-height: 1.45; }
+    .camera {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      overflow: hidden;
+      border-radius: 12px;
+      background: #111;
+    }
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .mira {
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      top: 35%;
+      height: 30%;
+      border: 2px solid rgba(255,255,255,.9);
+      border-radius: 8px;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,.20);
+      pointer-events: none;
+    }
+    .status {
+      margin-top: 14px;
+      padding: 13px;
+      border-radius: 10px;
+      background: #f8f9fa;
+      text-align: center;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 14px;
+      border: 1px solid #dadce0;
+      border-radius: 9px;
+      font-size: 18px;
+      margin-top: 8px;
+    }
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 9px;
+      padding: 14px;
+      margin-top: 12px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .primary { background: #1a73e8; color: white; }
+    .secondary { background: #e8eaed; color: #202124; }
+    .success { background: #188038; color: white; }
+    .erro { background: #fce8e6; color: #c5221f; }
+    .hidden { display: none; }
+    .small { font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h1>📷 Leitor Patrimonial HGV</h1>
+    <p>Posicione o código de barras <strong>Code 128</strong> dentro da área marcada.</p>
+
+    <div class="camera">
+      <video id="video" autoplay muted playsinline></video>
+      <div class="mira"></div>
+    </div>
+
+    <div id="status" class="status">Solicitando acesso à câmera...</div>
+
+    <button id="btnFechar" class="secondary" type="button">✖ FECHAR LEITOR</button>
+  </div>
+
+  <div class="card">
+    <strong>Se a câmera não funcionar</strong>
+    <p class="small">Você pode informar manualmente os 16 dígitos do código patrimonial.</p>
+    <input id="codigoManual" inputmode="numeric" maxlength="16" placeholder="0000000000000000">
+    <button id="btnManual" class="success" type="button">USAR CÓDIGO INFORMADO</button>
+  </div>
+</div>
+
+<script>
+  let leitor = null;
+  let controles = null;
+  let lendo = false;
+  let finalizado = false;
+
+  const video = document.getElementById('video');
+  const status = document.getElementById('status');
+
+  function atualizarStatus(texto, erro) {
+    status.textContent = texto;
+    status.className = 'status' + (erro ? ' erro' : '');
+  }
+
+  function limparCodigo(valor) {
+    return String(valor || '').replace(/\D/g, '');
+  }
+
+  function encerrarCamera() {
+    lendo = false;
+
+    if (controles) {
+      try { controles.stop(); } catch (e) {}
+      controles = null;
+    }
+
+    if (leitor) {
+      try { leitor.reset(); } catch (e) {}
+      leitor = null;
+    }
+
+    if (video && video.srcObject) {
+      try {
+        video.srcObject.getTracks().forEach(track => track.stop());
+      } catch (e) {}
+      video.srcObject = null;
+    }
+  }
+
+  function enviarCodigo(codigo) {
+    const limpo = limparCodigo(codigo);
+
+    if (!/^\d{16}$/.test(limpo)) {
+      atualizarStatus('O código precisa possuir exatamente 16 dígitos.', true);
+      return;
+    }
+
+    if (finalizado) return;
+    finalizado = true;
+
+    atualizarStatus('Código identificado: ' + limpo, false);
+    encerrarCamera();
+
+    if (window.opener && !window.opener.closed) {
+      window.opener.postMessage({
+        tipo: 'HGV_CODIGO_BARRAS',
+        codigo: limpo
+      }, '*');
+
+      setTimeout(function() {
+        try { window.close(); } catch (e) {}
+      }, 250);
+
+      return;
+    }
+
+    atualizarStatus('Leitura concluída. Esta janela foi aberta sem uma página principal para receber o código.', true);
+  }
+
+  async function iniciarCamera() {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Este navegador não disponibiliza acesso à câmera.');
+      }
+
+      atualizarStatus('Solicitando acesso à câmera...');
+
+      /*
+       * BrowserMultiFormatReader pertence ao @zxing/browser 0.2.1.
+       * BarcodeFormat.CODE_128 é o quinto valor do enum (índice 4).
+       * Limitamos o leitor a Code 128 para evitar tentativas desnecessárias
+       * de QR, EAN, PDF417 etc.
+       */
+      leitor = new ZXingBrowser.BrowserMultiFormatReader();
+      leitor.possibleFormats = [4];
+
+      atualizarStatus('Aponte a câmera para o código Code 128...');
+      lendo = true;
+
+      controles = await leitor.decodeFromConstraints(
+        {
+          audio: false,
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          }
+        },
+        video,
+        function(resultado, erro) {
+          if (!lendo || finalizado || !resultado) return;
+
+          const codigo = limparCodigo(resultado.getText());
+
+          if (codigo.length !== 16) {
+            atualizarStatus('Código detectado, mas não possui 16 dígitos.');
+            return;
+          }
+
+          enviarCodigo(codigo);
+        }
+      );
+
+    } catch (erro) {
+      console.error(erro);
+      encerrarCamera();
+
+      let mensagem =
+        erro && erro.message
+          ? erro.message
+          : 'Não foi possível acessar a câmera.';
+
+      if (erro && erro.name === 'NotAllowedError') {
+        mensagem = 'Acesso à câmera foi negado. Permita a câmera para este site e tente novamente.';
+      }
+
+      atualizarStatus(mensagem, true);
+    }
+  }
+
+  document.getElementById('btnFechar').addEventListener('click', function() {
+    encerrarCamera();
+    try { window.close(); } catch (e) {}
+    atualizarStatus('Leitor fechado.');
+  });
+
+  document.getElementById('btnManual').addEventListener('click', function() {
+    enviarCodigo(document.getElementById('codigoManual').value);
+  });
+
+  document.getElementById('codigoManual').addEventListener('keydown', function(event) {
+    if (event.key === 'Enter') {
+      enviarCodigo(this.value);
+    }
+  });
+
+  window.addEventListener('beforeunload', encerrarCamera);
+  window.addEventListener('load', iniciarCamera);
+</script>
+</body>
+</html>
